@@ -81,5 +81,5 @@ print(f"Predicted Price: ${predicted_price:.2f}")
 This project is open-source under the **MIT License**.
 
 ## 📬 Contact
-For questions or collaborations, reach out via **your-email@example.com** or visit the [GitHub Repository](https://github.com/your-username/crypto-price-prediction).
+For questions or collaborations, reach out via **eashan.singh78@gmail.com** or visit the [GitHub Repository](https://github.com/your-username/crypto-price-prediction).
 
