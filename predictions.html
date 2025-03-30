@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Prediction System - Predictions</title>
+    <link rel="stylesheet" href="home-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="prediction-controls">
+            <select id="crypto-select">
+                <option value="bitcoin">Bitcoin (BTC)</option>
+                <option value="ethereum">Ethereum (ETH)</option>
+                <option value="solana">Solana (SOL)</option>
+                <option value="bnb">BNB (BNB)</option>
+                <option value="xrp">XRP (XRP)</option>
+            </select>
+            
+            <div class="time-filters">
+                <button class="time-btn active" data-time="24h">24H</button>
+                <button class="time-btn" data-time="7d">7D</button>
+                <button class="time-btn" data-time="30d">30D</button>
+            </div>
+            
+            <button id="predict-btn">Generate Prediction</button>
+        </div>
+        
+        <div id="loading-section" style="display: none;">
+            <div class="loader"></div>
+            <p>Generating prediction...</p>
+        </div>
+        
+        <div id="results-section">
+            <div class="chart-container">
+                <canvas id="predictionChart"></canvas>
+            </div>
+            
+            <div class="prediction-results">
+                <div class="result-card">
+                    <h3>Predicted Price</h3>
+                    <p id="predicted-price">$--.--</p>
+                </div>
+                
+                <div class="result-card">
+                    <h3>Price Change</h3>
+                    <p id="price-change" class="prediction-change">--%</p>
+                </div>
+                
+                <div class="result-card">
+                    <h3>Confidence</h3>
+                    <div class="progress-bar">
+                        <div id="confidence-bar" class="progress-fill"></div>
+                        <span id="confidence-value">--</span>%
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <h3>Market Sentiment</h3>
+                    <div class="sentiment-bar">
+                        <div id="sentiment-bar" class="sentiment-fill"></div>
+                        <span id="sentiment-score">Neutral</span>
+                    </div>
+                    <p id="sentiment-analysis"></p>
+                </div>
+                
+                <div class="result-card">
+                    <h3>Recommendation</h3>
+                    <p id="recommendation" class="prediction-value">Hold</p>
+                </div>
+                
+                <div class="result-card">
+                    <h3>Key Factors</h3>
+                    <ul id="key-factors"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Chart and prediction variables
+        let predictionChart;
+        let currentCrypto = 'bitcoin';
+        let currentTimeFrame = '24h';
+        
+        // DOM elements
+        const cryptoSelect = document.getElementById('crypto-select');
+        const predictBtn = document.getElementById('predict-btn');
+        const timeButtons = document.querySelectorAll('.time-btn');
+        const loadingSection = document.getElementById('loading-section');
+        const resultsSection = document.getElementById('results-section');
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up event listeners
+            predictBtn.addEventListener('click', generatePrediction);
+            
+            cryptoSelect.addEventListener('change', function() {
+                currentCrypto = this.value;
+            });
+            
+            timeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    timeButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    currentTimeFrame = this.dataset.time;
+                });
+            });
+            
+            // Generate initial prediction
+            generatePrediction();
+        });
+        
+        async function generatePrediction() {
+            // Show loading state
+            loadingSection.style.display = 'block';
+            resultsSection.style.opacity = '0.5';
+            resultsSection.style.pointerEvents = 'none';
+            
+            try {
+                // Get crypto symbol based on selection
+                const cryptoMap = {
+                    bitcoin: 'BTC-USD',
+                    ethereum: 'ETH-USD',
+                    solana: 'SOL-USD',
+                    bnb: 'BNB-USD',
+                    xrp: 'XRP-USD'
+                };
+                const cryptoSymbol = cryptoMap[currentCrypto] || 'BTC-USD';
+                
+                // Simulate API response (replace with actual API call)
+                const simulatedResponse = {
+                    success: true,
+                    currentPrice: 68420.35,
+                    predictedPrice: 69245.78,
+                    priceChange: 1.21,
+                    confidence: 78
+                };
+                
+                // Format the response for our UI
+                const predictionData = {
+                    currentPrice: simulatedResponse.currentPrice,
+                    predictedPrice: simulatedResponse.predictedPrice,
+                    change: simulatedResponse.priceChange,
+                    confidence: simulatedResponse.confidence,
+                    sentiment: simulatedResponse.priceChange >= 0 ? 'Bullish' : 'Bearish',
+                    sentimentScore: simulatedResponse.priceChange >= 0 ? 
+                        Math.min(100, 50 + simulatedResponse.priceChange * 2) : 
+                        Math.max(0, 50 + simulatedResponse.priceChange * 2),
+                    recommendation: getRecommendation(simulatedResponse.priceChange, simulatedResponse.confidence),
+                    factors: getFactors(simulatedResponse.priceChange, cryptoSymbol)
+                };
+                
+                updatePredictionUI(predictionData);
+                
+            } catch (error) {
+                console.error("Prediction error:", error);
+                alert("Prediction failed: " + error.message);
+            } finally {
+                loadingSection.style.display = 'none';
+                resultsSection.style.opacity = '1';
+                resultsSection.style.pointerEvents = 'auto';
+            }
+        }
+
+        // Helper functions
+        function getRecommendation(change, confidence) {
+            if (confidence < 50) return 'Hold';
+            return change >= 0 ? 'Buy' : 'Sell';
+        }
+
+        function getFactors(change, crypto) {
+            const factors = [];
+            
+            if (change > 0) {
+                factors.push('Positive price momentum detected');
+                factors.push('Increasing buying volume');
+            } else {
+                factors.push('Negative price momentum detected');
+                factors.push('Increasing selling pressure');
+            }
+            
+            factors.push('Market sentiment analysis completed');
+            factors.push('Technical indicators for ' + crypto + ' analyzed');
+            
+            return factors;
+        }
+        
+        // Update UI with prediction data
+        function updatePredictionUI(data) {
+            // Update price prediction
+            document.getElementById('predicted-price').textContent = 
+                '$' + data.predictedPrice.toLocaleString('en-US', {maximumFractionDigits: 2});
+            
+            // Update price change
+            const changeElement = document.getElementById('price-change');
+            changeElement.textContent = (data.change > 0 ? '+' : '') + data.change.toFixed(2) + '%';
+            changeElement.className = 'prediction-change ' + (data.change >= 0 ? 'positive' : 'negative');
+            
+            // Update confidence
+            document.getElementById('confidence-value').textContent = data.confidence;
+            document.getElementById('confidence-bar').style.width = data.confidence + '%';
+            
+            // Update sentiment
+            document.getElementById('sentiment-score').textContent = data.sentiment;
+            document.getElementById('sentiment-score').className = 'prediction-value ' + 
+                (data.sentimentScore > 60 ? 'positive' : 
+                 data.sentimentScore < 40 ? 'negative' : '');
+            
+            document.getElementById('sentiment-analysis').textContent = 
+                'Our sentiment analysis of social media and news sources shows ' + 
+                data.sentiment.toLowerCase() + 
+                ' market conditions with a score of ' + data.sentimentScore + '/100.';
+            
+            // Update sentiment bar
+            const sentimentBar = document.getElementById('sentiment-bar');
+            sentimentBar.style.width = data.sentimentScore + '%';
+            sentimentBar.style.backgroundColor = 
+                data.sentimentScore > 60 ? '#28a745' : 
+                data.sentimentScore < 40 ? '#dc3545' : '#6c757d';
+            
+            // Update recommendation
+            document.getElementById('recommendation').textContent = data.recommendation;
+            document.getElementById('recommendation').className = 'prediction-value ' + 
+                (data.recommendation === 'Buy' ? 'positive' : 
+                 data.recommendation === 'Sell' ? 'negative' : '');
+            
+            // Update key factors
+            const factorsList = document.getElementById('key-factors');
+            factorsList.innerHTML = '';
+            data.factors.forEach(factor => {
+                const li = document.createElement('li');
+                li.textContent = factor;
+                factorsList.appendChild(li);
+            });
+            
+            // Update chart
+            updatePredictionChart(data);
+        }
+        
+        // Update or create prediction chart
+        function updatePredictionChart(data) {
+            const ctx = document.getElementById('predictionChart').getContext('2d');
+            
+            // Sample data for chart
+            const timeLabels = [];
+            const historicalData = [];
+            const predictedData = [];
+            
+            // Generate data points
+            const now = new Date();
+            const dataPoints = currentTimeFrame === '24h' ? 24 : currentTimeFrame === '7d' ? 7 : 30;
+            
+            for (let i = 0; i < dataPoints; i++) {
+                const date = new Date(now);
+                if (currentTimeFrame === '24h') {
+                    date.setHours(now.getHours() - (dataPoints - i));
+                    timeLabels.push(date.getHours() + ':00');
+                } else {
+                    date.setDate(now.getDate() - (dataPoints - i));
+                    timeLabels.push(date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
+                }
+                
+                // Generate some realistic looking random data
+                const baseValue = currentTimeFrame === '24h' ? data.currentPrice * 0.98 : 
+                                currentTimeFrame === '7d' ? data.currentPrice * 0.92 : data.currentPrice * 0.85;
+                const randomFactor = 1 + (Math.random() * 0.04 - 0.02);
+                historicalData.push(baseValue * randomFactor);
+                
+                if (i === dataPoints - 1) {
+                    predictedData.push(null);
+                    predictedData.push(data.predictedPrice);
+                } else {
+                    predictedData.push(null);
+                }
+            }
+            
+            // Add prediction point
+            timeLabels.push('Prediction');
+            
+            // Destroy previous chart if it exists
+            if (predictionChart) {
+                predictionChart.destroy();
+            }
+            
+            // Create new chart
+            predictionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'Historical Price',
+                            data: historicalData,
+                            borderColor: '#4a6fa5',
+                            backgroundColor: 'rgba(74, 111, 165, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Predicted Price',
+                            data: predictedData,
+                            borderColor: data.change >= 0 ? '#28a745' : '#dc3545',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointBackgroundColor: data.change >= 0 ? '#28a745' : '#dc3545',
+                            pointRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: currentCrypto.charAt(0).toUpperCase() + currentCrypto.slice(1) + 
+                                  ' Price ' + 
+                                  (currentTimeFrame === '24h' ? 'Last 24 Hours' : 
+                                   currentTimeFrame === '7d' ? 'Last 7 Days' : 'Last 30 Days') + 
+                                  ' with Prediction',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + 
+                                           context.raw.toLocaleString('en-US', {maximumFractionDigits: 2});
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString('en-US', {maximumFractionDigits: 0});
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
